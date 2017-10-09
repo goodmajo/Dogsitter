@@ -71,17 +71,17 @@ def main():
             print("is a light on == ", isALightOn)
 
             # Do things to the lights if the sun went up or down
-            if sunIsUp == False and isALightOn == 0:
+            if sunIsUp == False:
                 print("We need to turn on a light")
                 theLightIsOn = LightOn()
-            if sunIsUp == True and isALightOn == 1:
+            if sunIsUp == True:
                 print("We need to turn the light off")
                 if theLightIsOn == "downstairs":
                     GPIO.output(downstairsRelay, GPIO.LOW)
-                    isALightOn = 1
+                    #isALightOn = 1
                 else:
                     GPIO.output(upstairsRelay, GPIO.LOW)
-                    isALightOn = 1
+                    #isALightOn = 1
                 PrintTime("Lights are now off")
 
             # Check sensors
@@ -94,7 +94,7 @@ def main():
 
             if GPIO.input(upstairsSensor) == 1:
                 print("Upstairs sensor triggered")
-                oliveLocation, theLightIsOn = UpstairsSensorTriggered(sunIsUp)
+                oliveLocation = UpstairsSensorTriggered(sunIsUp)
                 if len(oliveLocation) == 2:
                     theLightIsOn = oliveLocation[1]
                     oliveLocation = oliveLocation[0]
