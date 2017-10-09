@@ -9,6 +9,9 @@ def PrintTime(aString):
     print(now, ":")
     print(aString)
 
+# Turn off the GPIO pins if they were left on for some reason.
+#GPIO.cleanup()
+
 # Pins get declared here.
 downstairsSensor = 2
 upstairsSensor = 3
@@ -27,9 +30,6 @@ GPIO.setup(downstairsRelay, GPIO.OUT)
 GPIO.setup(upstairsRelay, GPIO.OUT)
 GPIO.setup(powerLED, GPIO.OUT)
 GPIO.setup(triggerLED, GPIO.OUT)
-
-# Turn off the GPIO pins if they were left on for some reason.
-#GPIO.cleanup()
 
 # Make a boolean to say whether or not the light is activated. Assume we're turning this on during the day.
 LightOn = False
