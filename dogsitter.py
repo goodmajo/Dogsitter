@@ -10,11 +10,13 @@ def PrintTime(aString):
     print(aString)
 
 # Pins get declared here.
-downstairsSensor = x
-upstairsSensor = x
-upstairsRelay = x
-downstairsRelay = x
-initialLocationSwitch = x
+downstairsSensor = 2
+upstairsSensor = 3
+upstairsRelay = 20
+downstairsRelay = 21
+initialLocationSwitch = 26
+powerLED = 14
+triggerLED = 15
 
 # Set up GPIOs.
 GPIO.setmode(GPIO.BCM)
@@ -23,12 +25,20 @@ GPIO.setup(upstairsSensor, GPIO.IN)
 GPIO.setup(initialLocationSwitch, GPIO.IN)
 GPIO.setup(downstairsRelay, GPIO.OUT)
 GPIO.setup(upstairsRelay, GPIO.OUT)
+GPIO.setup(powerLED, GPIO.OUT)
+GPIO.setup(triggerLED, GPIO.OUT)
+
+# Turn off the GPIO pins if they were left on for some reason.
+#GPIO.cleanup()
 
 # Make a boolean to say whether or not the light is activated. Assume we're turning this on during the day.
 LightOn = False
 
 # This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
 timeDelay = 12
+
+# This variable determines how long we want to wait before the program starts running
+startupDelay = 5
 
 # This will tell us *which* light is on.
 theLightIsOn = "upstairs"
@@ -37,14 +47,14 @@ theLightIsOn = "upstairs"
 whereAmI = ephem.city('San Francisco')
 
 # Pause for 10 seconds to give us a chance to leave without triggering downstairsSensor.
-time.sleep(10)
+time.sleep(startupDelay)
 PrintTime("Starting Dogsitter now")
 
 # If the switch is up, set oliveLocation to upstairs.
-if GPIO.input(initialLocationSwitch == 1):
-    oliveLocation = "upstairs"
-else:
-    oliveLocation = "downstairs"
+#if GPIO.input(initialLocationSwitch == 1):
+#    oliveLocation = "upstairs"
+#else:
+#    oliveLocation = "downstairs"
 
 def main():
     try:
@@ -80,6 +90,11 @@ def main():
 
     except KeyboardInterrupt:
         PrintTime("Dogsitter has been stopped by user")
+        GPIO.cleanup()
+        exit()
+    
+    except:
+        PrintTime("An error has occurred and Dogsitter needs to quit")
         GPIO.cleanup()
         exit()
 
