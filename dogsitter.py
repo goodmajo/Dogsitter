@@ -10,10 +10,10 @@ def PrintTime(aString):
     print(aString)
 
 # Turn off the GPIO pins if they were left on for some reason.
-#GPIO.cleanup()
+GPIO.cleanup()
 
 # Pins get declared here.
-downstairsSensor = 2
+downstairsSensor = 3
 upstairsSensor = 3
 upstairsRelay = 20
 downstairsRelay = 21
@@ -32,13 +32,13 @@ GPIO.setup(powerLED, GPIO.OUT)
 GPIO.setup(triggerLED, GPIO.OUT)
 
 # Make a boolean to say whether or not the light is activated. Assume we're turning this on during the day.
-LightOn = False
+isALightOn = 0
 
 # This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
 timeDelay = 12
 
 # This variable determines how long we want to wait before the program starts running
-startupDelay = 5
+startupDelay = 1
 
 # This will tell us *which* light is on.
 theLightIsOn = "upstairs"
@@ -51,10 +51,12 @@ time.sleep(startupDelay)
 PrintTime("Starting Dogsitter now")
 
 # If the switch is up, set oliveLocation to upstairs.
-#if GPIO.input(initialLocationSwitch == 1):
-#    oliveLocation = "upstairs"
-#else:
-#    oliveLocation = "downstairs"
+if GPIO.input(initialLocationSwitch) == 1:
+    oliveLocation = "upstairs"
+    print("Olive was upstairs when you left")
+else:
+    oliveLocation = "downstairs"
+    print("Olive was downstairs when you left")
 
 def main():
     try:
@@ -62,27 +64,36 @@ def main():
             # Check time
             sun = ephem.Sun(whereAmI)
             sunIsUp = whereAmI.previous_rising(sun) > whereAmI.previous_setting(sun)
+            print("sunIsUp defined")
+            
+            print("startup delay == ", startupDelay)
+            print("downstairs == ", downstairsSensor)
+            print("is a light on == ", isALightOn)
 
             # Do things to the lights if the sun went up or down
-            if sunIsUp == False and LightOn == False:
+            if sunIsUp == False and isALightOn == 0:
+                print("We need to turn on a light")
                 theLightIsOn = LightOn()
-            if sunIsUp == True and LightOn == True:
+            if sunIsUp == True and isALightOn == 1:
+                print("We need to turn the light off")
                 if theLightIsOn == "downstairs":
                     GPIO.output(downstairsRelay, GPIO.LOW)
-                    LightOn = False
+                    isALightOn = 1
                 else:
                     GPIO.output(upstairsRelay, GPIO.LOW)
-                    LightOn = False
+                    isALightOn = 1
                 PrintTime("Lights are now off")
 
             # Check sensors
-            if GPIO.input(downstairsSensor == 1):
+            if GPIO.input(downstairsSensor) == 1:
+                print("Downstairs sensor triggered")
                 oliveLocation = DownstairsSensorTriggered(sunIsUp)
                 if len(oliveLocation) == 2:
                     theLightIsOn = oliveLocation[1]
                     oliveLocation = oliveLocation[0]
 
-            if GPIO.input(upstairsSensor == 1):
+            if GPIO.input(upstairsSensor) == 1:
+                print("Upstairs sensor triggered")
                 oliveLocation, theLightIsOn = UpstairsSensorTriggered(sunIsUp)
                 if len(oliveLocation) == 2:
                     theLightIsOn = oliveLocation[1]
@@ -93,10 +104,10 @@ def main():
         GPIO.cleanup()
         exit()
     
-    except:
-        PrintTime("An error has occurred and Dogsitter needs to quit")
-        GPIO.cleanup()
-        exit()
+    #except:
+    #    PrintTime("An error has occurred and Dogsitter needs to quit")
+    #    GPIO.cleanup()
+    #    exit()
 
 
 def LightOn():
@@ -117,9 +128,9 @@ def DownstairsSensorTriggered(sunIsUp):
     PrintTime("Downstairs sensor has been triggered")
     # Now wait and see if the second sensor was triggered
     while time.time() < triggerTime + timeDelay and lightChanged == False:
-        if GPIO.input(upstairsSensor == 1):
+        if GPIO.input(upstairsSensor) == 1:
             oliveLocation = "upstairs"
-            if sunIsUp == False and LightOn == True and theLightIsOn == "downstairs":
+            if sunIsUp == False and isALightOn == 1 and theLightIsOn == "downstairs":
                 PrintTime("Olive is moving downstairs. Turning on light downstairs.")
                 theLightIsOn = LightOn()
                 lightChanged = True
@@ -136,9 +147,9 @@ def UpstairsSensorTriggered(sunIsUp):
     PrintTime("Upstairs sensor has been triggered")
     # Now wait and see if the second sensor was triggered
     while time.time() < triggerTime + timeDelay and lightChanged == False:
-        if GPIO.input(downstairsSensor == 1):
+        if GPIO.input(downstairsSensor) == 1:
             oliveLocation = "downstairs"
-            if sunIsUp == False and LightOn == True and theLightIsOn == "upstairs":
+            if sunIsUp == False and isALightOn == 1 and theLightIsOn == "upstairs":
                 PrintTime("Olive is moving upstairs. Turning on light upstairs.")
                 theLightIsOn = LightOn()
                 lightChanged = True
