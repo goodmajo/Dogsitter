@@ -1,8 +1,7 @@
 import RPi.GPIO as GPIO
 import subprocess
-import time
 import datetime
-import ephem
+import time
 
 
 class Box(object):
@@ -10,9 +9,31 @@ class Box(object):
         print("Box is on")
 
     class Trigger_LED(object):
-        def __init__(self):
+        def __init__(self, green_pin, blue_pin):
             print("We have a trigger LED")
             self.state = "Off"
+            self.green_pin = green_pin
+            self.blue_pin = blue_pin
+
+
+        def update(self, message, sender):
+            print(message)
+            print("Trigger LED received update from", sender)
+            if sender == "upstairs":
+                print("Signal recieved from", sender)
+                for i in range(1, 3):
+                    GPIO.output(self.green_pin, GPIO.HIGH)
+                    time.sleep(1)
+                    GPIO.output(self.green_pin, GPIO.LOW)
+                    time.sleep(1)
+            if sender == "downstairs":
+                print("Signal recieved from", sender)
+                for i in range(1, 3):
+                    GPIO.output(self.blue_pin, GPIO.HIGH)
+                    time.sleep(1)
+                    GPIO.output(self.blue_pin, GPIO.LOW)
+                    time.sleep(1)
+
 
     class Power_LED(object):
         def __init__(self):
@@ -78,6 +99,22 @@ class Relay(object):
         if message == "On":
             print("I just turned the light on")
             GPIO.output(pin, GPIO.HIGH)
+
+
+class PIR_Sensor(object):
+    def __init__(self, name="PIR"):
+        self.name = name
+
+    def register(self, led):
+        self.observers.add(led)
+
+    def unregister(self, led):
+        self.observers.discard(led)
+
+    def dispatch(self, message, sender):
+        for observer in self.observers:
+            observer.update(message, sender)
+
 
 
 class Initial_Location_Switch(object):

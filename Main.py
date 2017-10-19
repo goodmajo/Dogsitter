@@ -1,91 +1,11 @@
 import RPi.GPIO as GPIO
 import time
-import subprocess
 import ephem
 import Dogsitter
 
-# Turn off the GPIO pins if they were left on for some reason.
-GPIO.cleanup()
-
-# Pins get declared here.
-downstairs_PIR = 3
-upstairs_PIR = 3
-upstairs_relay_pin = 20
-downstairs_relay_pin = 19
-temp_sensor = 18
-decibel_sensor = 23
-initial_location_switch_pin = 26
-power_LED_pin = 14
-trigger_LED_pin = 15
-
-# Set up GPIOs.
-GPIO.setmode(GPIO.BCM)
-
-GPIO.setup(downstairs_PIR, GPIO.IN)
-GPIO.setup(upstairs_PIR, GPIO.IN)
-GPIO.setup(initial_location_switch_pin, GPIO.IN)
-GPIO.setup(temp_sensor, GPIO.IN)
-GPIO.setup(decibel_sensor, GPIO.IN)
-
-GPIO.setup(downstairs_relay_pin, GPIO.OUT)
-GPIO.setup(upstairs_relay_pin, GPIO.OUT)
-GPIO.setup(power_LED_pin, GPIO.OUT)
-GPIO.setup(trigger_LED_pin, GPIO.OUT)
-
-# Sound file name
-sound_filename = "~/Music/whitenoise.mp3"
-
-# This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
-time_delay = 10.0
-
-# This variable determines how long we want to wait before the program starts running
-startup_delay = 1.0
-
-# Define city for aquisition of sunrise/sunset time.
-where_am_I = ephem.city('San Francisco')
-
-# Create objects and related variables
-olive = Dogsitter.Dog()
-initial_location_switch = Dogsitter.Initial_Location_Switch()
-stereo = Dogsitter.Stereo(sound_filename)
-power_LED = Dogsitter.Box.Power_LED()
-trigger_LED = Dogsitter.Box.Trigger_LED()
-
-lights = Dogsitter.Lights()
-
-upstairs_light_name = "upstairs light"
-upstairs_light = Dogsitter.Light(upstairs_light_name)
-
-downstairs_light_name = "downstairs light"
-downstairs_light = Dogsitter.Light(downstairs_light_name)
-
-upstairs_relay = Dogsitter.Relay("upstairs relay", upstairs_relay_pin)
-downstairs_relay = Dogsitter.Relay("downstairs relay", downstairs_relay_pin)
-
-# Set up observers
-upstairs_light.register(upstairs_light)
-upstairs_light.register(upstairs_relay)
-
-downstairs_light.register(downstairs_light)
-downstairs_light.register(downstairs_relay)
-
-# Easy vars for the dog's position, on and off
-upstairs = "upstairs"
-downstairs = "downstairs"
-on = "On"
-off = "Off"
-
-# If the switch is up, set oliveLocation to upstairs.
-if GPIO.input(initial_location_switch):
-    olive.location_in_house = upstairs
-    print("Olive was upstairs when you left")
-else:
-    olive.location_in_house = downstairs
-    print("Olive was downstairs when you left")
-
 
 def main():
-    # Pause for 10 seconds to give us a chance to leave without triggering downstairsSensor.
+    # Pause for some amount of time to give us a chance to leave without triggering downstairs_PIR.
     time.sleep(startup_delay)
     Dogsitter.PrintTime("Starting Dogsitter now")
     try:
@@ -120,8 +40,8 @@ def main():
                             upstairs_light.dispatch(off, upstairs_light_name)
 
             # Check PIR sensors
-            if GPIO.input(downstairs_PIR):
-                print("Downstairs sensor triggered")
+            if GPIO.input(downstairs_PIR_pin):
+                downstairs_PIR.dispatch("Downstairs sensor triggered", downstairs)
                 trigger_time = time.time()
                 while time.time() < trigger_time + time_delay and not GPIO.input(upstairs_PIR):
                     if GPIO(upstairs_PIR):
@@ -129,10 +49,10 @@ def main():
                         olive.trips_through_house += 1
 
             if GPIO.input(upstairs_PIR):
-                print("Upstairs sensor triggered")
+                upstairs_PIR.dispatch("Upstairs sensor triggered", upstairs)
                 trigger_time = time.time()
-                while time.time() < trigger_time + time_delay and not GPIO.input(downstairs_PIR):
-                    if GPIO(downstairs_PIR):
+                while time.time() < trigger_time + time_delay and not GPIO.input(downstairs_PIR_pin):
+                    if GPIO(downstairs_PIR_pin):
                         olive.location_in_house = downstairs
                         olive.trips_through_house += 1
 
@@ -148,21 +68,109 @@ def main():
 
     except KeyboardInterrupt:
         Dogsitter.Print_Time("Dogsitter has been stopped by user")
-        GPIO.cleanup()
         upstairs_light.unregister(upstairs_light)
         upstairs_light.unregister(upstairs_relay)
         downstairs_light.unregister(downstairs_light)
         downstairs_light.unregister(downstairs_relay)
+        GPIO.cleanup()
         exit()
 
     except:
         Dogsitter.Print_Time("An error has occurred and Dogsitter needs to quit")
-        GPIO.cleanup()
         upstairs_light.unregister(upstairs_light)
         upstairs_light.unregister(upstairs_relay)
         downstairs_light.unregister(downstairs_light)
         downstairs_light.unregister(downstairs_relay)
+        GPIO.cleanup()
         exit()
+
+
+# Turn off the GPIO pins if they were left on for some reason after this script failed.
+GPIO.cleanup()
+
+# Pins get declared here.
+downstairs_PIR_pin = 3
+upstairs_PIR = 4
+upstairs_relay_pin = 20
+downstairs_relay_pin = 19
+temp_sensor = 18
+decibel_sensor = 23
+initial_location_switch_pin = 26
+power_LED_pin = 14
+green_trigger_LED_pin = 15
+blue_trigger_LED_pin = 16
+
+# Set up GPIOs.
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(downstairs_PIR_pin, GPIO.IN)
+GPIO.setup(upstairs_PIR, GPIO.IN)
+GPIO.setup(initial_location_switch_pin, GPIO.IN)
+GPIO.setup(temp_sensor, GPIO.IN)
+GPIO.setup(decibel_sensor, GPIO.IN)
+
+GPIO.setup(downstairs_relay_pin, GPIO.OUT)
+GPIO.setup(upstairs_relay_pin, GPIO.OUT)
+GPIO.setup(power_LED_pin, GPIO.OUT)
+GPIO.setup(blue_trigger_LED_pin, GPIO.OUT)
+GPIO.setup(green_trigger_LED_pin, GPIO.OUT)
+
+# Sound file name
+sound_filename = "~/Music/whitenoise.mp3"
+
+# This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
+time_delay = 10.0
+
+# This variable determines how long we want to wait before the program starts running
+startup_delay = 1.0
+
+# Define city for aquisition of sunrise/sunset time. I don't live in SF, but it's the closest ephem can get.
+where_am_I = ephem.city('San Francisco')
+
+# Create objects and related variables
+olive = Dogsitter.Dog()
+initial_location_switch = Dogsitter.Initial_Location_Switch()
+stereo = Dogsitter.Stereo(sound_filename)
+
+power_LED = Dogsitter.Box.Power_LED()
+trigger_LED = Dogsitter.Box.Trigger_LED(green_trigger_LED_pin, blue_trigger_LED_pin)
+
+downstairs_PIR = Dogsitter.PIR_Sensor()
+upstairs_PIR = Dogsitter.PIR_Sensor()
+
+lights = Dogsitter.Lights()
+
+upstairs_light_name = "upstairs light"
+upstairs_light = Dogsitter.Light(upstairs_light_name)
+
+downstairs_light_name = "downstairs light"
+downstairs_light = Dogsitter.Light(downstairs_light_name)
+
+upstairs_relay = Dogsitter.Relay("upstairs relay", upstairs_relay_pin)
+downstairs_relay = Dogsitter.Relay("downstairs relay", downstairs_relay_pin)
+
+# Set up observers
+upstairs_light.register(upstairs_light)
+upstairs_light.register(upstairs_relay)
+
+downstairs_light.register(downstairs_light)
+downstairs_light.register(downstairs_relay)
+
+downstairs_PIR.register(trigger_LED)
+
+# Easy vars for the dog's position, on and off
+upstairs = "upstairs"
+downstairs = "downstairs"
+on = "On"
+off = "Off"
+
+# If the switch is up, set oliveLocation to upstairs.
+if GPIO.input(initial_location_switch):
+    olive.location_in_house = upstairs
+    print("Olive was upstairs when you left")
+else:
+    olive.location_in_house = downstairs
+    print("Olive was downstairs when you left")
 
 
 if __name__ == '__main__':
