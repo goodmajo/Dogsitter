@@ -1,4 +1,5 @@
 import RPi.GPIO as GPIO
+import subprocess
 import time
 import datetime
 import ephem
@@ -85,9 +86,13 @@ class Initial_Location_Switch(object):
 
 
 class Stereo(object):
-    def __init__(self):
+    def __init__(self, filename):
         print("Making stereo object")
         self.state = "Off"
+        self.filename = filename
+
+    def play_audio(self):
+        subprocess.call(['xdg-open', self.filename])
 
 
 def PrintTime(aString):

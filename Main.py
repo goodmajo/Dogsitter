@@ -20,13 +20,20 @@ trigger_LED_pin = 15
 
 # Set up GPIOs.
 GPIO.setmode(GPIO.BCM)
+
 GPIO.setup(downstairs_PIR, GPIO.IN)
 GPIO.setup(upstairs_PIR, GPIO.IN)
 GPIO.setup(initial_location_switch_pin, GPIO.IN)
+GPIO.setup(temp_sensor, GPIO.IN)
+GPIO.setup(decibel_sensor, GPIO.IN)
+
 GPIO.setup(downstairs_relay_pin, GPIO.OUT)
 GPIO.setup(upstairs_relay_pin, GPIO.OUT)
 GPIO.setup(power_LED_pin, GPIO.OUT)
 GPIO.setup(trigger_LED_pin, GPIO.OUT)
+
+# Sound file name
+sound_filename = "~/Music/whitenoise.mp3"
 
 # This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
 time_delay = 10.0
@@ -40,7 +47,7 @@ where_am_I = ephem.city('San Francisco')
 # Create objects and related variables
 olive = Dogsitter.Dog()
 initial_location_switch = Dogsitter.Initial_Location_Switch()
-stereo = Dogsitter.Stereo
+stereo = Dogsitter.Stereo(sound_filename)
 power_LED = Dogsitter.Box.Power_LED()
 trigger_LED = Dogsitter.Box.Trigger_LED()
 
@@ -62,12 +69,11 @@ upstairs_light.register(upstairs_relay)
 downstairs_light.register(downstairs_light)
 downstairs_light.register(downstairs_relay)
 
-# Easy vars for the dog's position
+# Easy vars for the dog's position, on and off
 upstairs = "upstairs"
 downstairs = "downstairs"
-
-# Sound file name
-sound_filename = "~/Music/whitenoise.mp3"
+on = "On"
+off = "Off"
 
 # If the switch is up, set oliveLocation to upstairs.
 if GPIO.input(initial_location_switch):
@@ -91,33 +97,33 @@ def main():
             # Do things to the lights if the sun went up or down
             if sun_is_up:
                 # Sun's up
-                if lights.state == "On":
-                    upstairs_light.dispatch("Off", upstairs_light_name)
-                    downstairs_light.dispatch("Off", downstairs_light_name)
+                if lights.state == on:
+                    upstairs_light.dispatch(off, upstairs_light_name)
+                    downstairs_light.dispatch(off, downstairs_light_name)
+                    lights.state = off
             else:
                 # Sun's down
-                if lights.state == "Off":
+                if lights.state == off:
                     if olive.location_in_house == upstairs:
-                        downstairs_light.dispatch("On", downstairs_light_name)
+                        downstairs_light.dispatch(on, downstairs_light_name)
                     else:
-                        upstairs_light.dispatch("On", upstairs_light_name)
-                    lights.state = "On"
+                        upstairs_light.dispatch(on, upstairs_light_name)
+                    lights.state = on
                 else:
                     if olive.location_in_house == upstairs:
-                        if downstairs_light.state == "On":
+                        if downstairs_light.state == on:
                             print("Since Olive is upstairs, turning off light downstairs")
-                            downstairs_light.dispatch("Off", downstairs_light_name)
+                            downstairs_light.dispatch(off, downstairs_light_name)
                     if olive.location_in_house == downstairs:
-                        if upstairs_light.state == "On":
+                        if upstairs_light.state == on:
                             print("Looks like olive moved downstairs. Turning upstairs light off.")
-                            upstairs_light.dispatch("Off", upstairs_light_name)
-
+                            upstairs_light.dispatch(off, upstairs_light_name)
 
             # Check PIR sensors
             if GPIO.input(downstairs_PIR):
                 print("Downstairs sensor triggered")
                 trigger_time = time.time()
-                while time.time() < trigger_time + time_delay and GPIO.input(upstairs_PIR) == False:
+                while time.time() < trigger_time + time_delay and not GPIO.input(upstairs_PIR):
                     if GPIO(upstairs_PIR):
                         olive.location_in_house = upstairs
                         olive.trips_through_house += 1
@@ -125,14 +131,14 @@ def main():
             if GPIO.input(upstairs_PIR):
                 print("Upstairs sensor triggered")
                 trigger_time = time.time()
-                while time.time() < trigger_time + time_delay and GPIO.input(downstairs_PIR) == False:
+                while time.time() < trigger_time + time_delay and not GPIO.input(downstairs_PIR):
                     if GPIO(downstairs_PIR):
                         olive.location_in_house = downstairs
                         olive.trips_through_house += 1
 
             # Check sound sensor
             if GPIO.input(decibel_sensor):
-                subprocess.call(['xdg-open', sound_filename])
+                stereo.play_audio()
 
             # Check temp sensor
             # Use I2C to communicate with Arduino and get temp info, maybe?
@@ -157,13 +163,6 @@ def main():
         downstairs_light.unregister(downstairs_light)
         downstairs_light.unregister(downstairs_relay)
         exit()
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
