@@ -4,87 +4,6 @@ import ephem
 import Dogsitter
 
 
-def main():
-    # Pause for some amount of time to give us a chance to leave without triggering downstairs_PIR.
-    time.sleep(startup_delay)
-    Dogsitter.PrintTime("Starting Dogsitter now")
-    try:
-        while True:
-            # Check to see if the sun is up or not.
-            sun = ephem.Sun(where_am_I)
-            sun_is_up = where_am_I.previous_rising(sun) > where_am_I.previous_setting(sun)
-
-            # Do things to the lights if the sun went up or down
-            if sun_is_up:
-                # Sun's up
-                if lights.state == on:
-                    upstairs_light.dispatch(off, upstairs_light_name)
-                    downstairs_light.dispatch(off, downstairs_light_name)
-                    lights.state = off
-            else:
-                # Sun's down
-                if lights.state == off:
-                    if olive.location_in_house == upstairs:
-                        downstairs_light.dispatch(on, downstairs_light_name)
-                    else:
-                        upstairs_light.dispatch(on, upstairs_light_name)
-                    lights.state = on
-                else:
-                    if olive.location_in_house == upstairs:
-                        if downstairs_light.state == on:
-                            print("Since Olive is upstairs, turning off light downstairs")
-                            downstairs_light.dispatch(off, downstairs_light_name)
-                    if olive.location_in_house == downstairs:
-                        if upstairs_light.state == on:
-                            print("Looks like olive moved downstairs. Turning upstairs light off.")
-                            upstairs_light.dispatch(off, upstairs_light_name)
-
-            # Check PIR sensors
-            if GPIO.input(downstairs_PIR_pin):
-                downstairs_PIR.dispatch("Downstairs sensor triggered", downstairs)
-                trigger_time = time.time()
-                while time.time() < trigger_time + time_delay and not GPIO.input(upstairs_PIR):
-                    if GPIO(upstairs_PIR):
-                        olive.location_in_house = upstairs
-                        olive.trips_through_house += 1
-
-            if GPIO.input(upstairs_PIR):
-                upstairs_PIR.dispatch("Upstairs sensor triggered", upstairs)
-                trigger_time = time.time()
-                while time.time() < trigger_time + time_delay and not GPIO.input(downstairs_PIR_pin):
-                    if GPIO(downstairs_PIR_pin):
-                        olive.location_in_house = downstairs
-                        olive.trips_through_house += 1
-
-            # Check sound sensor
-            if GPIO.input(decibel_sensor):
-                stereo.play_audio()
-
-            # Check temp sensor
-            # Use I2C to communicate with Arduino and get temp info, maybe?
-
-            # Publish info to webpage?
-
-
-    except KeyboardInterrupt:
-        Dogsitter.Print_Time("Dogsitter has been stopped by user")
-        upstairs_light.unregister(upstairs_light)
-        upstairs_light.unregister(upstairs_relay)
-        downstairs_light.unregister(downstairs_light)
-        downstairs_light.unregister(downstairs_relay)
-        GPIO.cleanup()
-        exit()
-
-    except:
-        Dogsitter.Print_Time("An error has occurred and Dogsitter needs to quit")
-        upstairs_light.unregister(upstairs_light)
-        upstairs_light.unregister(upstairs_relay)
-        downstairs_light.unregister(downstairs_light)
-        downstairs_light.unregister(downstairs_relay)
-        GPIO.cleanup()
-        exit()
-
-
 # Turn off the GPIO pins if they were left on for some reason after this script failed.
 GPIO.cleanup()
 
@@ -152,11 +71,14 @@ downstairs_relay = Dogsitter.Relay("downstairs relay", downstairs_relay_pin)
 # Set up observers
 upstairs_light.register(upstairs_light)
 upstairs_light.register(upstairs_relay)
+upstairs_light.register(lights)
 
 downstairs_light.register(downstairs_light)
 downstairs_light.register(downstairs_relay)
+downstairs_light.register(lights)
 
 downstairs_PIR.register(trigger_LED)
+upstairs_PIR.register(trigger_LED)
 
 # Easy vars for the dog's position, on and off
 upstairs = "upstairs"
@@ -171,6 +93,85 @@ if GPIO.input(initial_location_switch):
 else:
     olive.location_in_house = downstairs
     print("Olive was downstairs when you left")
+
+
+def main():
+    # Pause for some amount of time to give us a chance to leave without triggering downstairs_PIR.
+    time.sleep(startup_delay)
+    Dogsitter.print_time("Starting Dogsitter now")
+    try:
+        while True:
+            # Check to see if the sun is up or not.
+            sun = ephem.Sun(where_am_I)
+            sun_is_up = where_am_I.previous_rising(sun) > where_am_I.previous_setting(sun)
+
+            # Do things to the lights if the sun went up or down
+            if sun_is_up:
+                # Sun's up
+                if lights.state == on:  # If the sun is up and the lights are on, turn the lights off.
+                    upstairs_light.dispatch(off, upstairs_light_name)
+                    downstairs_light.dispatch(off, downstairs_light_name)
+            else:
+                # Sun's down
+                if lights.state == off: # If all the lights are off, check where olive is and turn a light on in her location.
+                    if olive.location_in_house == upstairs:
+                        downstairs_light.dispatch(on, downstairs_light_name)
+                    else:
+                        upstairs_light.dispatch(on, upstairs_light_name)
+                else:   # If the lights are on, make sure the light that is on is in Olive's location
+                    if olive.location_in_house == upstairs:
+                        if downstairs_light.state == on:
+                            print("Since Olive is upstairs, turning off light downstairs")
+                            downstairs_light.dispatch(off, downstairs_light_name)
+                    if olive.location_in_house == downstairs:
+                        if upstairs_light.state == on:
+                            print("Looks like olive moved downstairs. Turning upstairs light off.")
+                            upstairs_light.dispatch(off, upstairs_light_name)
+
+            # Check PIR sensors
+            if GPIO.input(downstairs_PIR_pin):  # Check for motion at the downstairs sensor
+                downstairs_PIR.dispatch("Downstairs sensor triggered", downstairs)
+                trigger_time = time.time()  # This will be used to time the elapsed time between sensor trigger events
+                while time.time() < trigger_time + time_delay and not GPIO.input(upstairs_PIR):     # Keep an eye on the upstairs PIR
+                    if GPIO(upstairs_PIR):
+                        olive.location_in_house = upstairs
+                        olive.trips_through_house += 1
+
+            if GPIO.input(upstairs_PIR):    # This block of code works the same as the one above
+                upstairs_PIR.dispatch("Upstairs sensor triggered", upstairs)
+                trigger_time = time.time()
+                while time.time() < trigger_time + time_delay and not GPIO.input(downstairs_PIR_pin):
+                    if GPIO(downstairs_PIR_pin):
+                        olive.location_in_house = downstairs
+                        olive.trips_through_house += 1
+
+            # Check sound sensor
+            if GPIO.input(decibel_sensor):
+                stereo.play_audio()
+
+            # Check temp sensor
+            # Use I2C to communicate with Arduino and get temp info, maybe?
+
+            # Publish info to webpage?
+
+
+    except KeyboardInterrupt:
+        Dogsitter.Print_Time("Dogsitter has been stopped by user")
+        upstairs_light.unregister(upstairs_light)
+        upstairs_light.unregister(upstairs_relay)
+        downstairs_light.unregister(downstairs_light)
+        downstairs_light.unregister(downstairs_relay)
+        GPIO.cleanup()
+        exit()
+
+    except:
+        Dogsitter.Print_Time("An error has occurred and Dogsitter needs to quit")
+        upstairs_light.unregister(upstairs_light)
+        upstairs_light.unregister(upstairs_relay)
+        downstairs_light.unregister(downstairs_light)
+        downstairs_light.unregister(downstairs_relay)
+        GPIO.cleanup()
+        exit()
 
 
 if __name__ == '__main__':

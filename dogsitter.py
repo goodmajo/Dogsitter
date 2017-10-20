@@ -15,7 +15,6 @@ class Box(object):
             self.green_pin = green_pin
             self.blue_pin = blue_pin
 
-
         def update(self, message, sender):
             print(message)
             print("Trigger LED received update from", sender)
@@ -23,22 +22,24 @@ class Box(object):
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
                     GPIO.output(self.green_pin, GPIO.HIGH)
-                    time.sleep(1)
+                    time.sleep(1.0)
                     GPIO.output(self.green_pin, GPIO.LOW)
-                    time.sleep(1)
+                    time.sleep(1.0)
             if sender == "downstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
                     GPIO.output(self.blue_pin, GPIO.HIGH)
-                    time.sleep(1)
+                    time.sleep(1.0)
                     GPIO.output(self.blue_pin, GPIO.LOW)
-                    time.sleep(1)
+                    time.sleep(1.0)
 
 
     class Power_LED(object):
-        def __init__(self):
+        def __init__(self, pin):
             print("We have a power LED")
             self.state = "On"
+            self.pin = pin
+            GPIO.output(self.pin, GPIO.HIGH)
 
 
 class Dog(object):
@@ -53,6 +54,27 @@ class Lights(object):
     def __init__(self):
         print("Lights object exists now")
         self.state = "Off"
+        self.upstairs_light = "Off"
+        self.downstairs_light = "Off"
+
+    def update(self, message, sender):
+        print(message)
+        print("Lights received update from", sender)
+        if message == "On":
+            if sender == "upstairs light":
+                self.upstairs_light = "On"
+            else:
+                self.downstairs_light = "On"
+        if message == "Off":
+            if sender == "upstairs light":
+                self.upstairs_light = "Off"
+            else:
+                self.downstairs_light = "Off"
+        if self.downstairs_light == "On" or self.upstairs_light == "On":
+            self.state = "On"
+        if self.downstairs_light == "Off" and self.upstairs_light == "Off":
+            self.state = "Off"
+
 
 
 class Light(object):
@@ -95,15 +117,16 @@ class Relay(object):
         print("relay received update from", sender)
         if message == "Off":
             print("I just turned the light off")
-            GPIO.output(pin, GPIO.LOW)
+            GPIO.output(self.pin, GPIO.LOW)
         if message == "On":
             print("I just turned the light on")
-            GPIO.output(pin, GPIO.HIGH)
+            GPIO.output(self.pin, GPIO.HIGH)
 
 
 class PIR_Sensor(object):
     def __init__(self, name="PIR"):
         self.name = name
+        self.observers = set()
 
     def register(self, led):
         self.observers.add(led)
@@ -114,7 +137,6 @@ class PIR_Sensor(object):
     def dispatch(self, message, sender):
         for observer in self.observers:
             observer.update(message, sender)
-
 
 
 class Initial_Location_Switch(object):
@@ -132,7 +154,7 @@ class Stereo(object):
         subprocess.call(['xdg-open', self.filename])
 
 
-def PrintTime(aString):
+def print_time(a_string):
     now = datetime.datetime.now()
     print(now, ":")
-    print(aString)
+    print(a_string)
