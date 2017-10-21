@@ -1,8 +1,11 @@
 import RPi.GPIO as GPIO
-import time
-import ephem
 import Dogsitter
-
+import time
+import datetime
+import ephem
+import serial
+import re
+import smtplib
 
 # Turn off the GPIO pins if they were left on for some reason after this script failed.
 GPIO.cleanup()
@@ -28,8 +31,8 @@ GPIO.setup(initial_location_switch_pin, GPIO.IN)
 GPIO.setup(temp_sensor, GPIO.IN)
 GPIO.setup(decibel_sensor, GPIO.IN)
 
-GPIO.setup(downstairs_relay_pin, GPIO.OUT)
-GPIO.setup(upstairs_relay_pin, GPIO.OUT)
+GPIO.setup(downstairs_relay_pin, GPIO.OUT, pull_up_down = GPIO.PUD_DOWN)
+GPIO.setup(upstairs_relay_pin, GPIO.OUT, pull_up_down = GPIO.PUD_DOWN)
 GPIO.setup(power_LED_pin, GPIO.OUT)
 GPIO.setup(blue_trigger_LED_pin, GPIO.OUT)
 GPIO.setup(green_trigger_LED_pin, GPIO.OUT)
@@ -37,11 +40,18 @@ GPIO.setup(green_trigger_LED_pin, GPIO.OUT)
 # Sound file name
 sound_filename = "~/Music/whitenoise.mp3"
 
-# This variable will control how many seconds we will wait for the second sensor to trigger once the first one detects movement.
+# This variable will control how many seconds we will wait for the second sensor to trigger once the first one
+# detects movement.
 time_delay = 10.0
 
 # This variable determines how long we want to wait before the program starts running
 startup_delay = 1.0
+
+# Set acceptable sound level before stereo is switched on
+sound_threshold = 100
+
+# We need a temperature threshold, too
+temp_threshold = 60
 
 # Define city for aquisition of sunrise/sunset time. I don't live in SF, but it's the closest ephem can get.
 where_am_I = ephem.city('San Francisco')
@@ -85,6 +95,11 @@ upstairs = "upstairs"
 downstairs = "downstairs"
 on = "On"
 off = "Off"
+
+# Serial stuff goes here
+serial_port = "/dev/ttyACM0"
+my_baud = 9600
+arduino_serial = serial.Serial(serial_port, my_baud)
 
 # If the switch is up, set oliveLocation to upstairs.
 if GPIO.input(initial_location_switch):
@@ -145,14 +160,24 @@ def main():
                         olive.location_in_house = downstairs
                         olive.trips_through_house += 1
 
-            # Check sound sensor
-            if GPIO.input(decibel_sensor):
+            # Check temp and sound info from Arduino serial The code below reads in the serial info, finds the
+            # numbers, eliminates all other characters, and stores the numbers in a list.
+            read_serial = arduino_serial.readline().decode('utf-8')
+            split_serial = re.findall(r'\b\d+\b', read_serial)
+
+            # This bit turns the list members back into floats, like we need.
+            temperature = float(split_serial[0])
+            sound_level = float(split_serial[1])
+
+            if sound_level > sound_threshold:
                 stereo.play_audio()
+                stereo.state = on
 
-            # Check temp sensor
-            # Use I2C to communicate with Arduino and get temp info, maybe?
+            # If it's really cold, send an email letting us know
+            if temperature > temp_threshold:
+                send_mail(temperature, sound_level)
 
-            # Publish info to webpage?
+            #Publish info to webpage?
 
 
     except KeyboardInterrupt:
@@ -172,6 +197,30 @@ def main():
         downstairs_light.unregister(downstairs_relay)
         GPIO.cleanup()
         exit()
+
+def send_mail(temperature, sound_level):
+    mail_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    mail_server.ehlo()
+
+    email_sender = 'sender@gmail.com'
+    email_password = 'p@ssword'
+    email_receiver = 'receiver@gmail.com'
+    email_subject = "Where is Olive - temperature is {} degrees.".format(temperature)
+
+    if lights.state == on:
+        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are on {3}.\nHave a " \
+                     "good day!\n\nMessage sent:\n{4}.\n".format(temperature, sound_level, stereo.state,
+                                                                 lights.on_location, datetime.datetime.now())
+    else:
+        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.   \nHave a " \
+                     "good day!\n\nMessage sent:\n{3}.\n".format(temperature, sound_level, stereo.state,
+                                                                 datetime.datetime.now())
+
+    email_message = 'Subject: {}\n\n{}'.format(email_subject, email_text)
+
+    mail_server.login(email_sender, email_password)
+    mail_server.sendmail(email_sender, email_receiver, email_message)
+    mail_server.close()
 
 
 if __name__ == '__main__':

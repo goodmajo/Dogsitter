@@ -54,6 +54,7 @@ class Lights(object):
     def __init__(self):
         print("Lights object exists now")
         self.state = "Off"
+        self.on_location = None
         self.upstairs_light = "Off"
         self.downstairs_light = "Off"
 
@@ -63,8 +64,10 @@ class Lights(object):
         if message == "On":
             if sender == "upstairs light":
                 self.upstairs_light = "On"
+                self.on_location = "upstairs"
             else:
                 self.downstairs_light = "On"
+                self.on_location = "downstairs"
         if message == "Off":
             if sender == "upstairs light":
                 self.upstairs_light = "Off"
@@ -74,6 +77,7 @@ class Lights(object):
             self.state = "On"
         if self.downstairs_light == "Off" and self.upstairs_light == "Off":
             self.state = "Off"
+            self.on_location = None
 
 
 
@@ -158,3 +162,4 @@ def print_time(a_string):
     now = datetime.datetime.now()
     print(now, ":")
     print(a_string)
+
