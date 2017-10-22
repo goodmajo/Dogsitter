@@ -1,5 +1,5 @@
 # import RPi.GPIO as GPIO
-import subprocess
+import pygame
 import datetime
 import time
 import smtplib
@@ -152,9 +152,14 @@ class Stereo(object):
         print("Making stereo object")
         self.state = "Off"
         self.filename = filename
+        self.timer = time.time()
 
     def play_audio(self):
-        subprocess.call(['xdg-open', self.filename])
+        pygame.mixer.init()
+        pygame.mixer.music.load(self.filename)
+        pygame.mixer.music.play()
+        self.timer = time.time()
+        self.state = "On"
 
 
 def print_time(a_string):
@@ -165,91 +170,91 @@ def print_time(a_string):
 
 def Html_Author(temperature, a_dog, the_lights, a_stereo):
     # Make an html file with your variables nicely slipped into the body of the page.
-
     f = open('index.html', 'w')
+    # Edit this HTML as you see fit. Make sure to change the picture filename.
+    make_html = f"""
+    <html>
+    <head>
+      <title>Where is My Dog Today?</title>
+      <style>
+      div.container {{
+          width: 100%;
+          border: 1px solid gray;
+      }}
 
-    make_html = """
-<html>
-<head>
-  <title>Where is Olive Today?</title>
-  <style>
-  div.container {{
-      width: 100%;
-      border: 1px solid gray;
-  }}
+      header, footer {{
+          padding: 1em;
+          color: white;
+          background-color: black;
+          clear: left;
+          text-align: center;
+      }}
 
-  header, footer {{
-      padding: 1em;
-      color: white;
-      background-color: black;
-      clear: left;
-      text-align: center;
-  }}
+      nav {{
+          float: left;
+          max-width: 200px;
+          margin: 0;
+          padding: 1em;
+      }}
 
-  nav {{
-      float: left;
-      max-width: 200px;
-      margin: 0;
-      padding: 1em;
-  }}
+      nav ul {{
+          list-style-type: none;
+          padding: 0;
+      }}
 
-  nav ul {{
-      list-style-type: none;
-      padding: 0;
-  }}
+      nav ul a {{
+          text-decoration: none;
+      }}
 
-  nav ul a {{
-      text-decoration: none;
-  }}
+      article {{
+          margin-left: 400px;
+          border-left: 1px solid gray;
+          padding: 1em;
+          overflow: hidden;
+      }}
+      </style>
+      </head>
+      <body>
 
-  article {{
-      margin-left: 400px;
-      border-left: 1px solid gray;
-      padding: 1em;
-      overflow: hidden;
-  }}
-  </style>
-  </head>
-  <body>
+    <div class="flex-container">
+    <header>
+      <h1>Where is The Dog Today?</h1>
+      <h9>Spoiler: she's probably sleeping somewhere...</h9>
+    </header>
 
-<div class="flex-container">
-<header>
-  <h1>Where is My Dog Today?</h1>
-  <h9>Spoiler: she's probably sleeping somewhere...</h9>
-</header>
+    <nav class="nav">
+      <img src="DogPic.jpg" alt="Picture of the dog" width="337.5" height="450">
+    </nav>
 
-<nav class="nav">
-  <img src="OliveTheDog.jpg" alt="Olive the Pit Bull" width="329" height="377">
-</nav>
+    <article class="article">
+      <h1>Olive is:</h1>
+        <p>{a_dog.location_in_house}</p>
+      <h1>Trips up and down the stairs:</h1>
+        <p>{a_dog.trips_through_house}</p>
+      <h1>Temperature:</h1>
+      <p>{temperature}° farenheit</p>
 
-<article class="article">
-  <h1>Olive is<h1>
-    <p><strong>{0}.</strong></p>
-    <p>She has made {1} trips up and down the stairs</p>
-  <h2>Temperature</h2>
-  <p><strong>{2}°</strong> farenheit</p>
+      <h1>White Noise Status:</h1>
+      <p>{a_stereo.state}</p>
 
-  <h2>White Noise Status</h2>
-  <p><strong>{3}</strong></p>
+      <h1>Lights are:</h1>
+      <p>{the_lights.state} {the_lights.on_location}</p>
+    </article>
+    </article>
 
-  <h2>Lights</h2>
-  <p><strong>{4} {5}</strong></p>
-</article>
-</article>
-
-<footer>
-<a href="github.com/goodmajo/dogsitter">Github</a>
-</footer>
-</div>
-</body>
-</html>
-""".format(a_dog.location_in_house, a_dog.trips_through_house, temperature, a_stereo.state, the_lights.state,
-           the_lights.on_location)
+    <footer>
+    <a>Updated : {datetime.datetime.now()}</a>
+    </footer>
+    </div>
+    </body>
+    </html>
+    """
 
     f.write(make_html)
     f.close()
 
-    # Now do Git stuff to see the webpage update
+    # Now do Git stuff to see the webpage update.
+    # Remember, for this to work your page has to be hosted on github pages.
     repo_dir = ''
     repo = Repo(repo_dir)
     file_list = ['index.html']
@@ -259,6 +264,7 @@ def Html_Author(temperature, a_dog, the_lights, a_stereo):
     origin = repo.remote('origin')
     origin.push()
 
+
 def Send_Mail(temperature, sound_level, a_stereo, the_lights):
     mail_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     mail_server.ehlo()
@@ -266,14 +272,14 @@ def Send_Mail(temperature, sound_level, a_stereo, the_lights):
     email_sender = 'sender@gmail.com'
     email_password = 'p@ssword'
     email_receiver = 'receiver@gmail.com'
-    email_subject = "Where is Olive - temperature is {} degrees.".format(temperature)
+    email_subject = "Where is My Dog? - temperature is {} degrees.".format(temperature)
 
     if the_lights.state == "On":
         email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are on {3}.\nHave a " \
                      "good day!\n\nMessage sent:\n{4}.\n".format(temperature, sound_level, a_stereo.state,
                                                                  the_lights.on_location, datetime.datetime.now())
     else:
-        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.   \nHave a " \
+        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.\nHave a " \
                      "good day!\n\nMessage sent:\n{3}.\n".format(temperature, sound_level, a_stereo.state,
                                                                  datetime.datetime.now())
 
