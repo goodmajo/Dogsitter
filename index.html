@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+
 <html>
 <head>
   <title>Where is Olive Today?</title>
   <style>
   div.container {
-      width: 40%;
+      width: 100%;
       border: 1px solid gray;
   }
 
@@ -54,27 +54,18 @@
 
 <article class="article">
   <h1>Temperature</h1>
-  <p><strong>{}°</strong> farenheit</p>
+  <p><strong>{temperature}°</strong> farenheit</p>
 
   <h1>White Noise Status</h1>
-  <p><strong>{}</strong></p>
+  <p><strong>{noise_info}</strong></p>
 
   <h1>Lights</h1>
-  <p><strong>{}</strong></p>
-
-
-
-
-
-
-
-
+  <p><strong>{light_state} {light_location}</strong></p>
 </article>
 
 <footer>
 <a href="github.com/goodmajo/dogsitter">Github</a>
 </footer>
 </div>
-
 </body>
 </html>

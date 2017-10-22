@@ -1,4 +1,4 @@
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import subprocess
 import datetime
 import time
@@ -21,16 +21,16 @@ class Box(object):
             if sender == "upstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    GPIO.output(self.green_pin, GPIO.HIGH)
+                    #GPIO.output(self.green_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    GPIO.output(self.green_pin, GPIO.LOW)
+                    #GPIO.output(self.green_pin, GPIO.LOW)
                     time.sleep(1.0)
             if sender == "downstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    GPIO.output(self.blue_pin, GPIO.HIGH)
+                    #GPIO.output(self.blue_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    GPIO.output(self.blue_pin, GPIO.LOW)
+                    #GPIO.output(self.blue_pin, GPIO.LOW)
                     time.sleep(1.0)
 
 
@@ -39,7 +39,7 @@ class Box(object):
             print("We have a power LED")
             self.state = "On"
             self.pin = pin
-            GPIO.output(self.pin, GPIO.HIGH)
+            #GPIO.output(self.pin, GPIO.HIGH)
 
 
 class Dog(object):
@@ -121,10 +121,10 @@ class Relay(object):
         print("relay received update from", sender)
         if message == "Off":
             print("I just turned the light off")
-            GPIO.output(self.pin, GPIO.LOW)
+            #GPIO.output(self.pin, GPIO.LOW)
         if message == "On":
             print("I just turned the light on")
-            GPIO.output(self.pin, GPIO.HIGH)
+            #GPIO.output(self.pin, GPIO.HIGH)
 
 
 class PIR_Sensor(object):
