@@ -1,8 +1,9 @@
-#import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 import subprocess
 import datetime
 import time
-
+import smtplib
+from git import Repo
 
 class Box(object):
     def __init__(self):
@@ -21,25 +22,24 @@ class Box(object):
             if sender == "upstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    #GPIO.output(self.green_pin, GPIO.HIGH)
+                    # GPIO.output(self.green_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    #GPIO.output(self.green_pin, GPIO.LOW)
+                    # GPIO.output(self.green_pin, GPIO.LOW)
                     time.sleep(1.0)
             if sender == "downstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    #GPIO.output(self.blue_pin, GPIO.HIGH)
+                    # GPIO.output(self.blue_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    #GPIO.output(self.blue_pin, GPIO.LOW)
+                    # GPIO.output(self.blue_pin, GPIO.LOW)
                     time.sleep(1.0)
-
 
     class Power_LED(object):
         def __init__(self, pin):
             print("We have a power LED")
             self.state = "On"
             self.pin = pin
-            #GPIO.output(self.pin, GPIO.HIGH)
+            # GPIO.output(self.pin, GPIO.HIGH)
 
 
 class Dog(object):
@@ -78,7 +78,6 @@ class Lights(object):
         if self.downstairs_light == "Off" and self.upstairs_light == "Off":
             self.state = "Off"
             self.on_location = None
-
 
 
 class Light(object):
@@ -121,10 +120,10 @@ class Relay(object):
         print("relay received update from", sender)
         if message == "Off":
             print("I just turned the light off")
-            #GPIO.output(self.pin, GPIO.LOW)
+            # GPIO.output(self.pin, GPIO.LOW)
         if message == "On":
             print("I just turned the light on")
-            #GPIO.output(self.pin, GPIO.HIGH)
+            # GPIO.output(self.pin, GPIO.HIGH)
 
 
 class PIR_Sensor(object):
@@ -163,3 +162,123 @@ def print_time(a_string):
     print(now, ":")
     print(a_string)
 
+
+def Html_Author(temperature, a_dog, the_lights, a_stereo):
+    # Make an html file with your variables nicely slipped into the body of the page.
+
+    f = open('index.html', 'w')
+
+    make_html = """
+<html>
+<head>
+  <title>Where is Olive Today?</title>
+  <style>
+  div.container {{
+      width: 100%;
+      border: 1px solid gray;
+  }}
+
+  header, footer {{
+      padding: 1em;
+      color: white;
+      background-color: black;
+      clear: left;
+      text-align: center;
+  }}
+
+  nav {{
+      float: left;
+      max-width: 200px;
+      margin: 0;
+      padding: 1em;
+  }}
+
+  nav ul {{
+      list-style-type: none;
+      padding: 0;
+  }}
+
+  nav ul a {{
+      text-decoration: none;
+  }}
+
+  article {{
+      margin-left: 400px;
+      border-left: 1px solid gray;
+      padding: 1em;
+      overflow: hidden;
+  }}
+  </style>
+  </head>
+  <body>
+
+<div class="flex-container">
+<header>
+  <h1>Where is My Dog Today?</h1>
+  <h9>Spoiler: she's probably sleeping somewhere...</h9>
+</header>
+
+<nav class="nav">
+  <img src="OliveTheDog.jpg" alt="Olive the Pit Bull" width="329" height="377">
+</nav>
+
+<article class="article">
+  <h1>Olive is<h1>
+    <p><strong>{0}.</strong></p>
+    <p>She has made {1} trips up and down the stairs</p>
+  <h2>Temperature</h2>
+  <p><strong>{2}°</strong> farenheit</p>
+
+  <h2>White Noise Status</h2>
+  <p><strong>{3}</strong></p>
+
+  <h2>Lights</h2>
+  <p><strong>{4} {5}</strong></p>
+</article>
+</article>
+
+<footer>
+<a href="github.com/goodmajo/dogsitter">Github</a>
+</footer>
+</div>
+</body>
+</html>
+""".format(a_dog.location_in_house, a_dog.trips_through_house, temperature, a_stereo.state, the_lights.state,
+           the_lights.on_location)
+
+    f.write(make_html)
+    f.close()
+
+    # Now do Git stuff to see the webpage update
+    repo_dir = ''
+    repo = Repo(repo_dir)
+    file_list = ['index.html']
+    commit_message = 'Updating html'
+    repo.index.add(file_list)
+    repo.index.commit(commit_message)
+    origin = repo.remote('origin')
+    origin.push()
+
+def Send_Mail(temperature, sound_level, a_stereo, the_lights):
+    mail_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    mail_server.ehlo()
+
+    email_sender = 'sender@gmail.com'
+    email_password = 'p@ssword'
+    email_receiver = 'receiver@gmail.com'
+    email_subject = "Where is Olive - temperature is {} degrees.".format(temperature)
+
+    if the_lights.state == "On":
+        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are on {3}.\nHave a " \
+                     "good day!\n\nMessage sent:\n{4}.\n".format(temperature, sound_level, a_stereo.state,
+                                                                 the_lights.on_location, datetime.datetime.now())
+    else:
+        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.   \nHave a " \
+                     "good day!\n\nMessage sent:\n{3}.\n".format(temperature, sound_level, a_stereo.state,
+                                                                 datetime.datetime.now())
+
+    email_message = 'Subject: {}\n\n{}'.format(email_subject, email_text)
+
+    mail_server.login(email_sender, email_password)
+    mail_server.sendmail(email_sender, email_receiver, email_message)
+    mail_server.close()

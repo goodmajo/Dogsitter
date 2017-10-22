@@ -5,7 +5,7 @@ import datetime
 import ephem
 import serial
 import re
-import smtplib
+
 
 # Turn off the GPIO pins if they were left on for some reason after this script failed.
 GPIO.cleanup()
@@ -175,9 +175,12 @@ def main():
 
             # If it's really cold, send an email letting us know
             if temperature > temp_threshold:
-                send_mail(temperature, sound_level)
+                Dogsitter.Send_Mail(temperature, sound_level, stereo, lights)
 
-            #Publish info to webpage?
+            time_right_now = datetime.datetime.now()
+            if time_right_now.minute%5 is 0:
+                Dogsitter.Html_Author(temperature, olive, lights, stereo)
+
 
 
     except KeyboardInterrupt:
@@ -197,30 +200,6 @@ def main():
         downstairs_light.unregister(downstairs_relay)
         GPIO.cleanup()
         exit()
-
-def send_mail(temperature, sound_level):
-    mail_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    mail_server.ehlo()
-
-    email_sender = 'sender@gmail.com'
-    email_password = 'p@ssword'
-    email_receiver = 'receiver@gmail.com'
-    email_subject = "Where is Olive - temperature is {} degrees.".format(temperature)
-
-    if lights.state == on:
-        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are on {3}.\nHave a " \
-                     "good day!\n\nMessage sent:\n{4}.\n".format(temperature, sound_level, stereo.state,
-                                                                 lights.on_location, datetime.datetime.now())
-    else:
-        email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.   \nHave a " \
-                     "good day!\n\nMessage sent:\n{3}.\n".format(temperature, sound_level, stereo.state,
-                                                                 datetime.datetime.now())
-
-    email_message = 'Subject: {}\n\n{}'.format(email_subject, email_text)
-
-    mail_server.login(email_sender, email_password)
-    mail_server.sendmail(email_sender, email_receiver, email_message)
-    mail_server.close()
 
 
 if __name__ == '__main__':
