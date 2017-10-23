@@ -10,34 +10,36 @@ import re
 GPIO.cleanup()
 
 # Pins get declared here.
-downstairs_PIR_pin = 3
-upstairs_PIR = 4
+downstairs_PIR_pin = 19
+upstairs_PIR = 26
 upstairs_relay_pin = 20
-downstairs_relay_pin = 19
-temp_sensor = 18
-decibel_sensor = 23
-initial_location_switch_pin = 26
-power_LED_pin = 14
-green_trigger_LED_pin = 15
-blue_trigger_LED_pin = 16
+downstairs_relay_pin = 21
+
+initial_location_switch_pin = 23
+off_button_pin = 24
+
+power_LED_pin = 17
+green_trigger_LED_pin = 27
+blue_trigger_LED_pin = 22
+
 
 # Set up GPIOs.
 GPIO.setmode(GPIO.BCM)
 
 GPIO.setup(downstairs_PIR_pin, GPIO.IN)
 GPIO.setup(upstairs_PIR, GPIO.IN)
-GPIO.setup(initial_location_switch_pin, GPIO.IN)
-GPIO.setup(temp_sensor, GPIO.IN)
-GPIO.setup(decibel_sensor, GPIO.IN)
-
-GPIO.setup(downstairs_relay_pin, GPIO.OUT, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(upstairs_relay_pin, GPIO.OUT, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(downstairs_relay_pin, GPIO.OUT, pull_up_down=GPIO.PUD_DOWN)
+
+GPIO.setup(initial_location_switch_pin, GPIO.IN)
+GPIO.setup(off_button_pin, GPIO.IN)
+
 GPIO.setup(power_LED_pin, GPIO.OUT)
-GPIO.setup(blue_trigger_LED_pin, GPIO.OUT)
 GPIO.setup(green_trigger_LED_pin, GPIO.OUT)
+GPIO.setup(blue_trigger_LED_pin, GPIO.OUT)
 
 # Sound file name
-sound_filename = "white_noise.wav"
+sound_filename = "whitenoise.wav"
 
 # This variable will control how many seconds we will wait for the second sensor to trigger once the first one
 # detects movement.
@@ -112,7 +114,9 @@ else:
 def main():
     # Pause for some amount of time to give us a chance to leave without triggering downstairs_PIR.
     time.sleep(startup_delay)
-    Dogsitter.print_time("Starting Dogsitter now")
+    Dogsitter.Print_Time("Starting Dogsitter now")
+    temperature = 70
+    sound_level = 50
     try:
         while True:
             # Check to see if the sun is up or not.
@@ -184,24 +188,20 @@ def main():
             if time_right_now.minute % 15 is 0:
                 Dogsitter.Html_Author(temperature, olive, lights, stereo)
 
+            if GPIO.input(off_button_pin):
+                message = "This message is being sent because someone just turned off the Dogsitter"
+                Dogsitter.Quit_Dogsitter(temperature, sound_level, olive, lights, stereo, message)
+                exit()
 
 
     except KeyboardInterrupt:
-        Dogsitter.Print_Time("Dogsitter has been stopped by user")
-        upstairs_light.unregister(upstairs_light)
-        upstairs_light.unregister(upstairs_relay)
-        downstairs_light.unregister(downstairs_light)
-        downstairs_light.unregister(downstairs_relay)
-        GPIO.cleanup()
+        message = "Dogsitter has been stopped by user"
+        Dogsitter.Quit_Dogsitter(temperature, sound_level, olive, lights, stereo, message)
         exit()
 
     except:
-        Dogsitter.Print_Time("An error has occurred and Dogsitter needs to quit")
-        upstairs_light.unregister(upstairs_light)
-        upstairs_light.unregister(upstairs_relay)
-        downstairs_light.unregister(downstairs_light)
-        downstairs_light.unregister(downstairs_relay)
-        GPIO.cleanup()
+        message = "Dogsitter has encountered an error and needed to quit."
+        Dogsitter.Quit_Dogsitter(temperature, sound_level, olive, lights, stereo, message)
         exit()
 
 

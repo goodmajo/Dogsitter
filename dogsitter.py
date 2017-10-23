@@ -1,4 +1,4 @@
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import pygame
 import datetime
 import time
@@ -22,16 +22,16 @@ class Box(object):
             if sender == "upstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    # GPIO.output(self.green_pin, GPIO.HIGH)
+                    GPIO.output(self.green_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    # GPIO.output(self.green_pin, GPIO.LOW)
+                    GPIO.output(self.green_pin, GPIO.LOW)
                     time.sleep(1.0)
             if sender == "downstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    # GPIO.output(self.blue_pin, GPIO.HIGH)
+                    GPIO.output(self.blue_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    # GPIO.output(self.blue_pin, GPIO.LOW)
+                    GPIO.output(self.blue_pin, GPIO.LOW)
                     time.sleep(1.0)
 
     class Power_LED(object):
@@ -39,7 +39,7 @@ class Box(object):
             print("We have a power LED")
             self.state = "On"
             self.pin = pin
-            # GPIO.output(self.pin, GPIO.HIGH)
+            GPIO.output(self.pin, GPIO.HIGH)
 
 
 class Dog(object):
@@ -54,7 +54,7 @@ class Lights(object):
     def __init__(self):
         print("Lights object exists now")
         self.state = "Off"
-        self.on_location = None
+        self.on_location = ""
         self.upstairs_light = "Off"
         self.downstairs_light = "Off"
 
@@ -77,7 +77,7 @@ class Lights(object):
             self.state = "On"
         if self.downstairs_light == "Off" and self.upstairs_light == "Off":
             self.state = "Off"
-            self.on_location = None
+            self.on_location = ""
 
 
 class Light(object):
@@ -120,10 +120,10 @@ class Relay(object):
         print("relay received update from", sender)
         if message == "Off":
             print("I just turned the light off")
-            # GPIO.output(self.pin, GPIO.LOW)
+            GPIO.output(self.pin, GPIO.LOW)
         if message == "On":
             print("I just turned the light on")
-            # GPIO.output(self.pin, GPIO.HIGH)
+            GPIO.output(self.pin, GPIO.HIGH)
 
 
 class PIR_Sensor(object):
@@ -149,7 +149,7 @@ class Initial_Location_Switch(object):
 
 class Stereo(object):
     def __init__(self, filename):
-        print("Making stereo object")
+        print("Creating stereo object")
         self.state = "Off"
         self.filename = filename
         self.timer = time.time()
@@ -162,13 +162,13 @@ class Stereo(object):
         self.state = "On"
 
 
-def print_time(a_string):
+def Print_Time(a_string):
     now = datetime.datetime.now()
     print(now, ":")
     print(a_string)
 
 
-def Html_Author(temperature, a_dog, the_lights, a_stereo):
+def Html_Author(temperature, a_dog, the_lights, a_stereo, off_message = "Spoiler: she's probably sleeping somewhere..."):
     # Make an html file with your variables nicely slipped into the body of the page.
     f = open('index.html', 'w')
     # Edit this HTML as you see fit. Make sure to change the picture filename.
@@ -219,7 +219,7 @@ def Html_Author(temperature, a_dog, the_lights, a_stereo):
     <div class="flex-container">
     <header>
       <h1>Where is The Dog Today?</h1>
-      <h9>Spoiler: she's probably sleeping somewhere...</h9>
+      <h9>{off_message}</h9>
     </header>
 
     <nav class="nav">
@@ -265,7 +265,7 @@ def Html_Author(temperature, a_dog, the_lights, a_stereo):
     origin.push()
 
 
-def Send_Mail(temperature, sound_level, a_stereo, the_lights):
+def Send_Mail(temperature, sound_level, a_stereo, the_lights, home_or_not = ""):
     mail_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     mail_server.ehlo()
 
@@ -276,15 +276,23 @@ def Send_Mail(temperature, sound_level, a_stereo, the_lights):
 
     if the_lights.state == "On":
         email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are on {3}.\nHave a " \
-                     "good day!\n\nMessage sent:\n{4}.\n".format(temperature, sound_level, a_stereo.state,
-                                                                 the_lights.on_location, datetime.datetime.now())
+                     "good day!\n\nMessage sent:\n{4}.\n{5}\n".format(temperature, sound_level, a_stereo.state,
+                                                                 the_lights.on_location, datetime.datetime.now(), home_or_not)
     else:
         email_text = "Temperature = {0} degrees\nNoise level is {1} dB, Stereo is {2}.\nLights are off.\nHave a " \
-                     "good day!\n\nMessage sent:\n{3}.\n".format(temperature, sound_level, a_stereo.state,
-                                                                 datetime.datetime.now())
+                     "good day!\n\nMessage sent:\n{3}.\n{4}".format(temperature, sound_level, a_stereo.state,
+                                                                 datetime.datetime.now(), home_or_not)
 
     email_message = 'Subject: {}\n\n{}'.format(email_subject, email_text)
 
     mail_server.login(email_sender, email_password)
     mail_server.sendmail(email_sender, email_receiver, email_message)
     mail_server.close()
+
+def Quit_Dogsitter(temperature, sound_level, a_dog, the_lights, a_stereo, message):
+    Print_Time(message)
+    email_message = message
+    Html_Author(temperature, a_dog, the_lights, a_stereo, "OFFLINE")
+    Send_Mail(temperature, sound_level, a_stereo, the_lights, email_message)
+    GPIO.cleanup()
+    return
