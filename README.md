@@ -1,7 +1,5 @@
-# Dogsitter
-![alt text](https://github.com/goodmajo/Dogsitter/OliveChilling.jpg "Olive, the inspiration for this project")
-==============================================================================================================
-
+# DOGSITTER
+<img align="right" src=https://github.com/goodmajo/Dogsitter/blob/master/OliveChilling.jpg >
 ## What it is
 This program controls an Arduino, an RPi, 2 relays, and a number of sensors. The arduino acts as a signal processor for the analog sensors, and the RPi handles the system's output.
 ## What it does
