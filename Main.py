@@ -6,8 +6,6 @@ import ephem
 import serial
 import re
 
-# Turn off the GPIO pins if they were left on for some reason after this script failed.
-GPIO.cleanup()
 
 # Pins get declared here.
 downstairs_PIR_pin = 19
