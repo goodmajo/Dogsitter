@@ -95,6 +95,9 @@ downstairs = "downstairs"
 on = "On"
 off = "Off"
 
+# When was the last email sent? This var will keep track of that
+last_email = time.time()
+
 # Serial stuff goes here
 serial_port = "/dev/ttyACM0"
 my_baud = 9600
@@ -164,23 +167,25 @@ def main():
 
             # Check temp and sound info from Arduino serial The code below reads in the serial info, finds the
             # numbers, eliminates all other characters, and stores the numbers in a list.
+            # Serial should look like this: "Temperature = nx.yz, Sound Level = ab.cd,"
             read_serial = arduino_serial.readline().decode('utf-8')
             split_serial = re.findall(r'\b\d+\b', read_serial)
 
             # This bit turns the list members back into floats, like we need.
             temperature = float(split_serial[0])
-            sound_level = float(split_serial[1])
+            sound_level = float(split_serial[2])
 
-            if sound_level > sound_threshold:
+            if sound_level > sound_threshold and stereo.state is off:
                 stereo.play_audio()
 
-            # If an hour has gone by, the white noise has stopped
-            if stereo.state == on and time.time() >= stereo.timer + 3600:
+            # If an hour has gone by, the white noise has stopped.
+            if stereo.state is on and time.time() > stereo.timer + 3600:
                 stereo.state = off
 
-            # If it's really cold, send an email letting us know
-            if temperature > temp_threshold:
+            # If it's really cold, send an email letting us know. Only one email per hour, please!
+            if temperature > temp_threshold and time.time() > last_email + 3600:
                 Dogsitter.Send_Mail(temperature, sound_level, stereo, lights)
+                last_email = time.time()
 
             time_right_now = datetime.datetime.now()
             if time_right_now.minute % 15 is 0:
