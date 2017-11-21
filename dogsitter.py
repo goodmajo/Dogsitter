@@ -1,9 +1,10 @@
-#import RPi.#GPIO as #GPIO
+# import RPi.GPIO as GPIO
 import pygame
 import datetime
 import time
 import smtplib
 from git import Repo
+
 
 class Box(object):
     def __init__(self):
@@ -22,16 +23,16 @@ class Box(object):
             if sender == "upstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    #GPIO.output(self.green_pin, #GPIO.HIGH)
+                    # GPIO.output(self.green_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    #GPIO.output(self.green_pin, #GPIO.LOW)
+                    # GPIO.output(self.green_pin, GPIO.LOW)
                     time.sleep(1.0)
             if sender == "downstairs":
                 print("Signal recieved from", sender)
                 for i in range(1, 3):
-                    #GPIO.output(self.blue_pin, #GPIO.HIGH)
+                    # GPIO.output(self.blue_pin, GPIO.HIGH)
                     time.sleep(1.0)
-                    #GPIO.output(self.blue_pin, #GPIO.LOW)
+                    # GPIO.output(self.blue_pin, GPIO.LOW)
                     time.sleep(1.0)
 
     class Power_LED(object):
@@ -39,7 +40,7 @@ class Box(object):
             print("We have a power LED")
             self.state = "On"
             self.pin = pin
-            #GPIO.output(self.pin, #GPIO.HIGH)
+            # GPIO.output(self.pin, GPIO.HIGH)
 
 
 class Dog(object):
@@ -120,10 +121,10 @@ class Relay(object):
         print("relay received update from", sender)
         if message == "Off":
             print("I just turned the light off")
-            #GPIO.output(self.pin, #GPIO.LOW)
+            # GPIO.output(self.pin, GPIO.LOW)
         if message == "On":
             print("I just turned the light on")
-            #GPIO.output(self.pin, #GPIO.HIGH)
+            # GPIO.output(self.pin, GPIO.HIGH)
 
 
 class PIR_Sensor(object):
@@ -294,5 +295,5 @@ def Quit_Dogsitter(temperature, sound_level, a_dog, the_lights, a_stereo, messag
     email_message = message
     Html_Author(temperature, a_dog, the_lights, a_stereo, "OFFLINE")
     Send_Mail(temperature, sound_level, a_stereo, the_lights, email_message)
-    #GPIO.cleanup()
+    # GPIO.cleanup()
     return

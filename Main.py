@@ -4,7 +4,6 @@ import time
 import datetime
 import ephem
 import serial
-import re
 
 
 # Pins get declared here.
@@ -95,13 +94,16 @@ downstairs = "downstairs"
 on = "On"
 off = "Off"
 
-# When was the last email sent? This var will keep track of that
-last_email = time.time()
-
 # Serial stuff goes here
 serial_port = "/dev/ttyACM0"
 my_baud = 9600
-arduino_serial = serial.Serial(serial_port, my_baud)
+arduino_serial = serial.Serial(
+    port=serial_port,
+    baudrate=my_baud,
+    parity=serial.PARITY_NONE,
+    stopbits=serial.STOPBITS_ONE,
+    bytesize=serial.EIGHTBITS,
+    timeout=1)
 
 # If the switch is up, set oliveLocation to upstairs.
 if GPIO.input(initial_location_switch):
@@ -113,6 +115,11 @@ else:
 
 
 def main():
+    # When did the program start? This is important to keep track of to avoid hysterisis in the analog sensors.
+    # If this is confusing, see code below where Arduino serial info is read in from temp and sound sensors.
+    start_time = time.time()
+    # When was the last email sent? This var will keep track of that
+    last_email = time.time()
     # Pause for some amount of time to give us a chance to leave without triggering downstairs_PIR.
     time.sleep(startup_delay)
     Dogsitter.Print_Time("Starting Dogsitter now")
@@ -166,36 +173,38 @@ def main():
                         olive.trips_through_house += 1
 
             # Check temp and sound info from Arduino serial The code below reads in the serial info, finds the
-            # numbers, eliminates all other characters, and stores the numbers in a list.
-            # Serial should look like this: "Temperature = nx.yz, Sound Level = ab.cd,"
-            read_serial = arduino_serial.readline().decode('utf-8')
-            split_serial = re.findall(r'\b\d+\b', read_serial)
+            # appropriate numbers, eliminates all other characters. The last bit of stuff we get from the serial
+            # is garbage, so we get rid of it by only keeping the first two elements of the resulting list.
+            read_serial = arduino_serial.readline().decode('utf-8').split(',')[0:2]
+            # If all is well and we're getting usable data from serial AND it's been more than 2.5 minutes since
+            # Dogsitter started, go ahead and do things with the serial data. The 2.5 minute delay is how we cope
+            # with hysterisis. The temp sensors I'm using can take a minute to stabilize, and 2.5 minutes is just
+            # me being extra safe.
+            if len(read_serial) >= 2 and start_time - time.time() > 150:
+                # This bit turns the list members back into floats, like we need.
+                temperature = float(read_serial[0])
+                sound_level = float(read_serial[1])
 
-            # This bit turns the list members back into floats, like we need.
-            temperature = float(split_serial[0])
-            sound_level = float(split_serial[2])
+                if sound_level > sound_threshold and stereo.state is off:
+                    stereo.play_audio()
 
-            if sound_level > sound_threshold and stereo.state is off:
-                stereo.play_audio()
+                # If an hour has gone by, the white noise has stopped.
+                if stereo.state == on and time.time() > stereo.timer + 3600:
+                    stereo.state = off
 
-            # If an hour has gone by, the white noise has stopped.
-            if stereo.state is on and time.time() > stereo.timer + 3600:
-                stereo.state = off
-
-            # If it's really cold, send an email letting us know. Only one email per hour, please!
-            if temperature > temp_threshold and time.time() > last_email + 3600:
-                Dogsitter.Send_Mail(temperature, sound_level, stereo, lights)
-                last_email = time.time()
+                # If it's really cold, send an email letting us know. Only one email per hour, please!
+                if temperature > temp_threshold and time.time() > last_email + 3600:
+                    Dogsitter.Send_Mail(temperature, sound_level, stereo, lights)
+                    last_email = time.time()
 
             time_right_now = datetime.datetime.now()
-            if time_right_now.minute % 15 is 0:
+            if time_right_now.minute % 15 == 0:
                 Dogsitter.Html_Author(temperature, olive, lights, stereo)
 
             if GPIO.input(off_button_pin):
                 message = "This message is being sent because someone just turned off the Dogsitter"
                 Dogsitter.Quit_Dogsitter(temperature, sound_level, olive, lights, stereo, message)
                 exit()
-
 
     except KeyboardInterrupt:
         message = "Dogsitter has been stopped by user"
